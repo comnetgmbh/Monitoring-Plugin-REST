@@ -1,0 +1,6 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+t/Monitoring-Plugin-REST.t
+lib/Monitoring/Plugin/REST.pm

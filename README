@@ -1,0 +1,354 @@
+NAME
+
+    Monitoring::Plugin::REST - Monitoring via RESTful APIs for Nagios and
+    compatibles
+
+SYNOPSIS
+
+      use Monitoring::Plugin::REST;
+    
+      --- Basic usage ---
+      my $plugin = Monitoring::Plugin::REST->new(
+          usage => 'Monitoring::Plugin usage text here',
+          base_uri => '/api/', 
+      );
+    
+      --- Full example with authentication ---
+      my $plugin = Monitoring::Plugin::REST->new(
+          usage => 'Monitoring::Plugin usage text here',
+          base_uri => '/api/',
+          username => 'admin',
+          password => '1234',
+          authentication => {
+              method => 'POST',
+              endpoint => '/create_session',
+              uri_path_parameters => {},
+              request_map => {
+                  username => [ 'content', 'user' ],
+                  password => [ 'content', 'pass' ],
+              },
+              static_query_data => { static_data_for_authentication => 'transferred via uri query param' },
+              static_content_data => { static_data_for_authentication => 'transferred via body' },
+              response_map => {
+                'session_id' => [ 'query', 'session_id' ],
+              },
+          },
+      );
+    
+      $plugin->getopts;
+      my $data = $plugin->fetch('/status');
+      plugin_exit($data->{active} eq 'YES' ? OK : CRITICAL);
+
+DESCRIPTION
+
+    Monitoring::Plugin::REST is a REST handling library built on
+    Monitoring::Plugin, allowing you to easily write checks for Nagios and
+    compatible monitoring systems that fetch their data via a RESTful HTTP
+    API.
+
+    It takes care of most common tasks when working with RESTful APIs.
+    Currently, these include:
+
+      * Transport
+
+      * Authentication
+
+      * Serialization
+
+    Please see TRANSPORT, AUTHENTICATION and SERIALIZATION for more
+    information on how these topics are handled respectively.
+
+    Monitoring::Plugin::REST is based on Monitoring::Plugin. You are free
+    to use all exported values, functions and methods provided by
+    Monitoring::Plugin.
+
+ URI CONSTRUCTION
+
+  Step 1: Concatenation
+
+    URI construction is handled by Monitoring::Plugin::REST, in an effort
+    to simplify implementing often occurring patterns.
+
+    URIs used are constructed as:
+
+      host/base_uri/path?key=value
+
+    where
+
+    host is supplied via the command line host parameter
+
+    base_uri is configured by the developer as an constructor argument
+
+    path is given in calls to fetch()
+
+    After that, the URI is subject to expansion(see Expansion below). In a
+    final step, query parameters are appended as key/value(urlencoded)
+    parameters.
+
+  Step 2: Expansion
+
+    You can specify placeholder values in your URIs be enclosing them in @
+    characters. Monitoring::Plugin::REST will replace these before issuing
+    requests.
+
+    The actual values can be given by using the uri_path_parameters
+    constructor argument. They can also be set dynamically from
+    authentication responses by using the path target, see AUTHENTICATION
+    for more details.
+
+    Suppose the following usage:
+
+      my $plugin = Monitoring::Plugin::REST(
+          base_uri => '/foo/@first@/bar',
+          uri_path_paramters => { first => 'hello', second => 'world' },
+          ...
+      );
+    
+      $plugin->fetch('GET', '/@second@/baz');
+
+    The actual URI used will be
+
+      http://HOST/foo/hello/bar/world/baz
+
+ TRANSPORT
+
+      # Throws an exception if HTTP response status != 200
+      my $data = $plugin->fetch(
+          'GET'|'POST'|'PUT',
+          '/endpoint',
+          [query_arguments => {}],
+          [content_arguments => {}]
+      );
+    
+      # Does not throw exceptions
+      my ($http_status, $data) = $plugin->fetch(
+          'GET',
+          '/endpoint',
+          [query_arguments => {}],
+          [content_arguments => {}]
+      );
+
+    This librarie's main purpose is to handle the transport of API data.
+
+    Fetching a specific piece of information is doneby calling the fetch
+    method as shown above.
+
+    You can supply additional URI parameters in query_arguments, which will
+    be urlencoded and appended to your request. The same holds true for
+    parameters sent in your request's body. These are specified by
+    content_arguments. Values provided there will be serialized and
+    appended to the body.
+
+    If needed, authentication will be done automatically. Please refer to
+    AUTHENTICATION for more information on how authentication is handled.
+
+ AUTHENTICATION
+
+    There is no formal standard for authentication in RESTful HTTP APIs. As
+    such, check developers often find themselves implementing the same
+    basic principles, albeit slighlty different over and over.
+    Monitoring::Plugin::REST tries to combat that by providing a simple,
+    yet flexible mechanism for expressing authentication mechanisms.
+
+    Authentication is primarily configured via the authentication
+    attribute, which contains a HASHREF describing what should be done in
+    order to obtain a session. This description mainly consists of HTTP
+    request parameters as well as mappings of values to remember and
+    provide in subsequent requests.
+
+      authentication => {
+          method => '',
+          endpoint => '',
+          request_map => {},
+      },
+
+    Note that cookies will always be saved. There is no need to specify a
+    seperate mapping for session IDs and the like supplied via cookies.
+
+    method(SCALAR)
+
+      The HTTP method that should be used.
+
+      Defaults to GET.
+
+    endpoint(SCALAR)
+
+      API endpoint to use for authenticating. This is appended to the value
+      you've configured in the base_uri attribute.
+
+      Defaults to /login.
+
+    request_map(HASHREF)
+
+        request_map => {
+            ATTRIBUTE => [ 'query'|'content', KEY ],
+            ...
+        },
+
+      A HASHREF describing a mapping between Monitoring::Plugin::REST
+      ATTRIBUTEs and actually sent KEYs. These will be encoded as URI query
+      parameters(query) or serialized into the request body(content).
+
+      Suppose the API expects your username to be given via the parameter
+      user_name inside your body. You could achieve that by specifying:
+
+        request_map => {
+            username => [ 'content', 'user_name' ],
+            password => [ 'content', 'pass_word' ],
+        },
+
+      You can also specify nested structures by seperating path components
+      with a slash(/) like so:
+
+        request_map => {
+            'input/username' => [ 'content', 'output/user_name' ],
+        },
+
+      Defaults to { username => [ 'query', 'user' ], password => [ 'query',
+      'pass' ] }.
+
+    static_query_data(HASHREF)
+
+      A HASHREF that will be appended, urlencoded, to authentication
+      request URIs. No further processing will be done.
+
+      Defaults to {},
+
+    static_content_data(HASHREF)
+
+      A HASHREF that will be appended, in serialized form, to
+      authentication request bodies. No further processing will be done.
+
+      Defaults to {}.
+
+    response_map(HASHREF)
+
+        response_map => {
+            AUTH_KEY => [ 'query'|'path'|'content', DATA_KEY ],
+        },
+
+      A HASHREF describing a mapping between received AUTH_KEYs and sent
+      DATA_KEYs. You can think of this as the inverse of request_map.
+      Monitoring::Plugin::REST uses this to determine which values to
+      extract from an authentication response and how to use them in
+      subsequent data fetch requests.
+
+      Suppose authentication returns you a session key in session_id. You
+      need to pass the same value as a URI query parameter named
+      session-key. This can be done by setting the mapping to:
+
+        response_map => {
+            session_id => [ 'query', 'session-key' ],
+        },
+
+      Just like with request_map, you can specify nested structures by
+      seperating path components with a slash(/).
+
+      Defaults to {}.
+
+ SERIALIZATION
+
+    Serialization of data sent to the remote host, as well as
+    deserialization of data received from it, is mostly handled
+    automatically. The most commonly used format for representing data in
+    RESTful APIs is JSON, which will be used by default.
+
+    However, you can choose to use YAML instead of JSON by setting the
+    representation attribute to yaml.
+
+ATTRIBUTES
+
+    All attributes documented here must be set by passing them as
+    constructor arguments.
+
+    base_uri(SCALAR)
+
+      A generic part of your request URI that will be valid for all
+      requests performed. See URI CONSTRUCTION for more details on how it
+      is used.
+
+    uri_path_parameters(HASHREF)
+
+      Used during URI expansion to dynamically modify the URI used. See URI
+      CONSTRUCTION for more details on how it is used.
+
+    representation(SCALAR)
+
+      Determines what serialization/representation data format to use while
+      communicating. Can be either json or yaml. See SERIALIZATION for more
+      details.
+
+      Defaults to json.
+
+    authentication(HASHREF)
+
+      A HASHREF describing what kind of procedure is necessary in order to
+      authenticate against the host. See AUTHENTICATION for more details.
+
+FUNCTIONS AND METHODS
+
+    new(LIST)
+
+      The constructor. You can pass all arguments that are valid for
+      Monitoring::Plugin here, as well as all attributes documented under
+      ATTRIBUTES above.
+
+      Returns a new Monitoring::Plugin::REST object.
+
+    fetch(SCALAR method, SCALAR path, [ query_arguments => HASHREF ], [
+    content_arguments => HASHREF ])
+
+      An instance method used to actually fetch data from the configured
+      host. It will handle authentication according to the authentication
+      attribute (see L>AUTHENTICATION>) and perform data serialization and
+      deserialization.
+
+      In list context, returns a list consisting of the HTTP status code
+      and the deserialized response body.
+
+      In scalar context, returns just the deserialized responsy body.
+      Throws an exception if the request completed with an HTTP status code
+      that is NOT 200(i.e. HTTP_OK).
+
+    authenticate()
+
+      Internally used instance method to perform authentication. This is
+      the method actually scanning through the authentication attribute and
+      performing the necessary steps in order to obtain a session.
+
+      Feel free to subclass Monitoring::Plugin::REST and override
+      authenticate if the built-in authentication mechanism isn't flexible
+      enough for your particular device.
+
+KNOWN LIMITATIONS
+
+    Monitoring::Plugin::REST does not provide any means to support HTTP
+    basic or digest auth yet. This will be implemted in a later version.
+
+SEE ALSO
+
+    check_oceanstor.pl
+
+      Simple Huawei OceanStor check based on Monitoring::Plugin::REST.
+
+    Monitoring::Plugin
+
+      Our base class. See it's documentation for more information on
+      general check functions and methods.
+
+    https://github.com/comnetgmbh
+
+      Official git repository on GitHub.
+
+AUTHOR
+
+    Rika Lena Denia, <rika.denia@comnetgmbh.com>
+
+COPYRIGHT AND LICENSE
+
+    Copyright (C) 2017 by Rika Lena Denia
+
+    This library is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself, either Perl version 5.24.1 or, at
+    your option, any later version of Perl 5 you may have available.
+
