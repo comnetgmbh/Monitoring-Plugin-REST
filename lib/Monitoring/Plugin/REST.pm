@@ -13,7 +13,7 @@ use parent qw/Monitoring::Plugin Class::Accessor/;
 my @ATTRIBUTES = qw/base_uri uri_path_parameters representation authentication/;
 __PACKAGE__->mk_accessors(@ATTRIBUTES);
 
-our $VERSION = '1.00';
+our $VERSION = '1.10';
 
 #
 # Internal helper methods
