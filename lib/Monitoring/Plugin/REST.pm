@@ -52,8 +52,28 @@ sub _mkuri {
 sub _request($$) {
     my ($this, $request) = @_;
 
-    $this->_debug('Running request ' . $request->uri->as_string);
-    return $this->{ua}->request($request);
+    $this->_debug(
+        "Running request:\n" . YAML::Dump(
+        {
+            method  => $request->method,
+            uri     => $request->uri->as_string,
+            headers => { $request->headers->flatten, },
+            content => $request->content,
+        }),
+    );
+    
+    my $response = $this->ua->request($request);
+    
+    $this->_debug(
+        "Response:\n" . YAML::Dump(
+        {
+            code    => $response->code,
+            headers => { $response->headers->flatten, },
+            content => $response->content,
+        }),
+    );
+    
+    return $response;
 }
 
 # Returns a true value if we're authenticated, a false value if not
