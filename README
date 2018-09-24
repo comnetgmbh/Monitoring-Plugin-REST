@@ -224,7 +224,7 @@ DESCRIPTION
     response_map(HASHREF)
 
         response_map => {
-            AUTH_KEY => [ 'query'|'path'|'content', DATA_KEY ],
+            AUTH_KEY => [ 'query'|'path'|'header'|'content', DATA_KEY ],
         },
 
       A HASHREF describing a mapping between received AUTH_KEYs and sent

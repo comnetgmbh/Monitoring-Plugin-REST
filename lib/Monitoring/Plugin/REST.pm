@@ -208,6 +208,7 @@ sub new {
     $ret->{representation} = $args{representation} // 'json';
     $ret->{authentication} = $args{authentication};
     $ret->{auth_path} = $args{uri_path_parameters} // {};
+    $ret->{auth_header} = {};
     $ret->{auth_query} = {};
     $ret->{auth_content} = {};
 
@@ -298,7 +299,9 @@ sub authenticate {
     # %authentication
     while (my ($response_key, $mapping) = each(%{$authentication{response_map}})) {
         my ($type, $key) = @{$mapping};
-        confess('Invalid response mapping: ' . $type) unless $type =~ /^(query|path|content)$/;
+
+        # Verify mapping entry
+        confess('Invalid response mapping: ' . $type) unless $type =~ /^(query|path|content|header)$/;
 
         # Handled nested hash paths correctly
         $this->_nested_hash_set($this->{'auth_' . $type}, $key, $this->_nested_hash_get($response, $response_key));
@@ -309,6 +312,7 @@ sub fetch {
     my ($this, $method, $path, %args) = @_;
 
     # Default values for arguments
+    my $header_args = $args{header_arguments} // {};
     my $query_args = $args{query_arguments} // {};
     my $content_args = $args{content_arguments} // {};
 
@@ -324,8 +328,8 @@ sub fetch {
     # Prepare request
     my $request = HTTP::Request->new(
         $method,
-        $this->_mkuri($path, ( %{$this->{auth_query}}, %{$query_args} )), # $this->{auth_query} and $query_args combined
-        [],
+        $this->_mkuri($path, ( %{$this->{auth_query}}, %{$query_args} )),      # $this->{auth_query} and $query_args combined
+        HTTP::Headers->new(%{$this->{auth_header}}, %{$header_args}),          # $this->{auth_header} and $header_args combined
         $this->_serialize({ ( %{$this->{auth_content}}, %{$content_args} ) }), # $this->{auth_content} and $content_args combined
     );
 
@@ -579,7 +583,7 @@ Defaults to C<{}>.
 =item response_map(HASHREF)
 
   response_map => {
-      AUTH_KEY => [ 'query'|'path'|'content', DATA_KEY ],
+      AUTH_KEY => [ 'query'|'path'|'header'|'content', DATA_KEY ],
   },
 
 A HASHREF describing a mapping between received AUTH_KEYs and sent DATA_KEYs.
