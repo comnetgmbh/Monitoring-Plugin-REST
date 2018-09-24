@@ -23,5 +23,5 @@ WriteMakefile(
     },
     ABSTRACT_FROM     => 'lib/Monitoring/Plugin/REST.pm',
     AUTHOR            => 'Rika Lena Denia <rika.denia@comnetgmbh.com>',
-    LICENSE           => 'perl',
+    LICENSE           => 'gpl_3',
 );
