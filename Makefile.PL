@@ -19,6 +19,7 @@ WriteMakefile(
     },
     BUILD_REQUIRES    => {
         ExtUtils::MakeMaker   => 6.64,
+        Pod::Readme           => 0,
     },
     ABSTRACT_FROM     => 'lib/Monitoring/Plugin/REST.pm',
     AUTHOR            => 'Rika Lena Denia <rika.denia@comnetgmbh.com>',
