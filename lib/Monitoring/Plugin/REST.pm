@@ -48,7 +48,7 @@ sub _mkuri {
 
 # Takes HTTP::Request objects and actually performs the request described there.
 # NOTE:  Always use this method to perform requests, as this is overriden in our
-# tests in order to simulate HTTP connectionw.
+# tests in order to simulate HTTP connections.
 sub _request($$) {
     my ($this, $request) = @_;
 
