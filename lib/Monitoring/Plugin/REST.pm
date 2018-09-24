@@ -62,7 +62,7 @@ sub _authenticated($) {
 
     return 1 if keys(%{$this->{auth_query}});
     return 1 if keys(%{$this->{auth_content}});
-    return 1 if $this->{ua}->cookie_jar->as_string;
+    return 1 if $this->ua->cookie_jar->as_string;
     return 0;
 }
 
@@ -145,6 +145,29 @@ sub _nested_hash_set($$$$) {
     }
 }
 
+
+#
+# Accessors
+#
+
+sub ua($) {
+    my $this = shift;
+
+    unless (defined($this->{ua})) {
+        my %args;
+        if ($this->opts->get('insecure')) {
+            $args{ssl_opts} = { verify_hostname => 0 };
+        }
+
+        my $ua = LWP::UserAgent->new(%args);
+        $ua->cookie_jar({});
+
+        $this->{ua} = $ua;
+    }
+
+    return $this->{ua};
+}
+
 #
 # Public functions and methods
 #
@@ -164,8 +187,6 @@ sub new {
     $ret->{base_uri} = $args{base_uri} // '/';
     $ret->{representation} = $args{representation} // 'json';
     $ret->{authentication} = $args{authentication};
-    $ret->{ua} = LWP::UserAgent->new;
-    $ret->{ua}->cookie_jar({});
     $ret->{auth_path} = $args{uri_path_parameters} // {};
     $ret->{auth_query} = {};
     $ret->{auth_content} = {};
@@ -182,6 +203,10 @@ sub new {
     $ret->add_arg(
         spec => 'password|p=s',
         help => "-p, --password=PASSWORD\n   Password to use while authenticating",
+    );
+    $ret->add_arg(
+        spec => 'insecure|i',
+        help => "-i, --insecure\n    Do not verify TLS certificate hostname",
     );
 
     return $ret;
