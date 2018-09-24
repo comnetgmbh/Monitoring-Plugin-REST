@@ -303,6 +303,9 @@ sub authenticate {
         # Verify mapping entry
         confess('Invalid response mapping: ' . $type) unless $type =~ /^(query|path|content|header)$/;
 
+        # Did we get that entry?
+        confess("Authentication failed: We did not receive $response_key") unless defined $this->_nested_hash_get($response, $response_key);
+
         # Handled nested hash paths correctly
         $this->_nested_hash_set($this->{'auth_' . $type}, $key, $this->_nested_hash_get($response, $response_key));
     }
